@@ -19,6 +19,7 @@ from homeassistant.components.media_player.const import (
 )
 from homeassistant.const import (
     CONF_NAME,
+    CONF_HOST,
     STATE_OFF,
     STATE_PAUSED,
     STATE_PLAYING,
@@ -61,6 +62,7 @@ SUPPORT_MQTTMEDIAPLAYER = (
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_NAME): cv.string,
+        vol.Required(CONF_HOST): cv.string,
         vol.Optional(TOPICS):
             vol.All({
                 vol.Optional(SONGTITLE_T): cv.template,
@@ -88,6 +90,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     topics = config.get(TOPICS)    
     entity_name = config.get(CONF_NAME)
+    host = config.get(CONF_HOST)
     next_action = config.get(NEXT_ACTION)
     previous_action = config.get(PREVIOUS_ACTION)
     play_action = config.get(PLAY_ACTION)
@@ -101,7 +104,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities([MQTTMediaPlayer(
         entity_name, next_action, previous_action, play_action, pause_action, 
         vol_down_action, vol_up_action, player_status_keyword, 
-        topics, mqtt, hass
+        topics, mqtt, hass, host
         )], )
 
 
@@ -113,7 +116,7 @@ class MQTTMediaPlayer(MediaPlayerEntity):
 
     def __init__(self, name, next_action, previous_action, play_action, pause_action, 
     vol_down_action, vol_up_action, player_status_keyword, 
-    topics, mqtt, hass):
+    topics, mqtt, hass, host):
         """Initialize"""
         self.hass = hass
         self._domain = __name__.split(".")[-2]
@@ -132,7 +135,11 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._vol_down_action = None
         self._vol_up_action = None
         self._vol_script = None
+        self._unique_id = "{}-{}".format(host, name)
 
+        _LOGGER.debug(
+            "Set up Phoniebox: %s, name: %s, unique_id: %s", host, name, self._unique_id
+        )
 
         if(next_action):
             self._next_script = Script(hass, next_action, self._name, self._domain)
@@ -230,6 +237,11 @@ class MQTTMediaPlayer(MediaPlayerEntity):
     @property
     def should_poll(self):
         return False
+
+    @property
+    def unique_id(self):
+        """Return the unique ID of the entity."""
+        return self._unique_id
 
     @property
     def name(self):
